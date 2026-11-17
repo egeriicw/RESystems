@@ -122,14 +122,18 @@ def update_site(site_id: int, body: SiteUpdate, db: Session = Depends(get_db)) -
     if changes.get("weather_id") is not None:
         store.get_dataset(db, changes["weather_id"])
     moved = any(k in changes and changes[k] != getattr(site, k) for k in ("latitude", "longitude"))
+    # Values that were set automatically for the old location; hand-picked ones are kept on a move.
+    auto_tz = site.time_zone == round(site.longitude / 15)
+    old_nearest = store.nearest_weather(db, site.latitude, site.longitude) if moved else None
+    auto_weather = site.weather_id is None or (old_nearest is not None and site.weather_id == old_nearest[0])
     for key, value in changes.items():
         setattr(site, key, value)
-    # A moved site gets the same automatic values as a new one, unless this
-    # request set them explicitly.
+    # A moved site gets new automatic values unless this request set them, or
+    # they had been chosen by hand.
     if moved:
-        if "time_zone" not in changes:
+        if "time_zone" not in changes and auto_tz:
             site.time_zone = round(site.longitude / 15)
-        if "weather_id" not in changes:
+        if "weather_id" not in changes and auto_weather:
             nearest = store.nearest_weather(db, site.latitude, site.longitude)
             site.weather_id = nearest[0] if nearest else None
     db.commit()

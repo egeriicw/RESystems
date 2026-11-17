@@ -89,6 +89,16 @@ def test_moving_a_site_reassigns_weather_and_time_zone(client, phoenix):  # #4
     client.delete(f"/api/sites/{site['id']}")
 
 
+def test_moving_a_site_keeps_hand_picked_values(client, phoenix):  # #4
+    # Dayton is on UTC-5, but the longitude estimate gives -6; the user corrected it,
+    # and chose Phoenix weather even though Dayton's is nearer.
+    site = client.post("/api/sites", json={"name": "Picked", "latitude": 39.76, "longitude": -84.19,
+                                           "time_zone": -5, "weather_id": phoenix["id"]}).json()
+    moved = client.patch(f"/api/sites/{site['id']}", json={"latitude": 39.77, "longitude": -84.2}).json()
+    assert moved["time_zone"] == -5 and moved["weather_id"] == phoenix["id"]
+    client.delete(f"/api/sites/{site['id']}")
+
+
 def test_empty_weather_id_is_rejected(client):  # #6
     site = client.post("/api/sites", json={"name": "x", "latitude": 39.7, "longitude": -84.2}).json()
     assert client.patch(f"/api/sites/{site['id']}", json={"weather_id": ""}).status_code == 404
