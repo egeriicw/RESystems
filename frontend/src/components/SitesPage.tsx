@@ -50,7 +50,7 @@ function FlyTo({ lat, lon }: { lat: number; lon: number }) {
 }
 
 export function SitesPage({ sites, weather, scenarios, onChange, onNewScenario, onOpenScenario }: {
-  sites: Site[]; weather: WeatherSummary[]; scenarios: Scenario[]; onChange: () => void;
+  sites: Site[]; weather: WeatherSummary[]; scenarios: Scenario[]; onChange: () => Promise<unknown>;
   onNewScenario: (site: Site) => void; onOpenScenario: (s: Scenario) => void;
 }) {
   const [selectedId, setSelectedId] = useState<number | "new" | null>(sites[0]?.id ?? null);
@@ -60,7 +60,11 @@ export function SitesPage({ sites, weather, scenarios, onChange, onNewScenario, 
   const selected = typeof selectedId === "number" ? sites.find((s) => s.id === selectedId) : undefined;
 
   useEffect(() => { if (selected) setDraft(toDraft(selected)); }, [selected]);
-  useEffect(() => { if (selectedId === null && sites.length) setSelectedId(sites[0].id); }, [sites, selectedId]);
+  // Fall back to the first site when nothing is selected or the selection no longer exists.
+  useEffect(() => {
+    const missing = typeof selectedId === "number" && !sites.some((s) => s.id === selectedId);
+    if (selectedId === null || missing) setSelectedId(sites[0]?.id ?? null);
+  }, [sites, selectedId]);
 
   const lat = Number(draft.latitude), lon = Number(draft.longitude);
   const hasPoint = draft.latitude !== "" && draft.longitude !== "" && Number.isFinite(lat) && Number.isFinite(lon);
@@ -70,17 +74,27 @@ export function SitesPage({ sites, weather, scenarios, onChange, onNewScenario, 
     setBusy(true); setError(null);
     try {
       const s = await fn();
-      onChange();
+      await onChange();  // reload first, so the selection is resolved against the new list
       setSelectedId(s ? s.id : null);
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
 
   const save = () => act(() => {
     const body = toInput(draft);
-    if (selectedId === "new") return db.createSite(body);
-    // Leaving these blank means "keep the current value" when editing.
-    if (body.time_zone === null) delete body.time_zone;
-    return db.updateSite(selectedId as number, body);
+    if (selectedId === "new") {
+      // Blank means "work it out": omit so the server estimates the time zone and picks the nearest weather.
+      if (body.time_zone === null) delete body.time_zone;
+      if (body.weather_id === null) delete body.weather_id;
+      return db.createSite(body);
+    }
+    // Send only what changed, so moving a site lets the server reassign its
+    // time zone and nearest weather unless those were edited too.
+    const before = toInput(toDraft(selected!));
+    const changes: Partial<SiteInput> = {};
+    for (const k of Object.keys(body) as (keyof SiteInput)[]) {
+      if (body[k] !== before[k] && !(k === "time_zone" && body[k] === null)) (changes as Record<string, unknown>)[k] = body[k];
+    }
+    return db.updateSite(selected!.id, changes);
   });
 
   const pick = (la: number, lo: number) => {

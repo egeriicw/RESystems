@@ -57,7 +57,7 @@ def test_every_model_runs(model):
     assert eff is not None and 0 < eff < 1
     sf = res.metrics.get("solar_fraction")
     if sf is not None:
-        assert 0 <= sf <= 1.05
+        assert 0 <= sf <= 1
     if "Ts" in res.annual:
         assert -20 < min(res.hourly["Ts"]) and max(res.hourly["Ts"]) < 110
 

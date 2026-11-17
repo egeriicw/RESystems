@@ -96,11 +96,11 @@ def create_site(body: SiteFields, db: Session = Depends(get_db)) -> SiteOut:
     data = body.model_dump()
     if data["time_zone"] is None:
         data["time_zone"] = round(body.longitude / 15)
-    if data["weather_id"] is None:
+    if "weather_id" in body.model_fields_set and data["weather_id"] is not None:
+        store.get_dataset(db, data["weather_id"])
+    else:
         nearest = store.nearest_weather(db, body.latitude, body.longitude)
         data["weather_id"] = nearest[0] if nearest else None
-    else:
-        store.get_dataset(db, data["weather_id"])
     site = Site(**data)
     db.add(site)
     db.commit()
@@ -119,10 +119,19 @@ def update_site(site_id: int, body: SiteUpdate, db: Session = Depends(get_db)) -
     for required in ("name", "latitude", "longitude", "time_zone"):
         if required in changes and changes[required] is None:
             raise HTTPException(422, f"{required} cannot be null")
-    if changes.get("weather_id"):
+    if changes.get("weather_id") is not None:
         store.get_dataset(db, changes["weather_id"])
+    moved = any(k in changes and changes[k] != getattr(site, k) for k in ("latitude", "longitude"))
     for key, value in changes.items():
         setattr(site, key, value)
+    # A moved site gets the same automatic values as a new one, unless this
+    # request set them explicitly.
+    if moved:
+        if "time_zone" not in changes:
+            site.time_zone = round(site.longitude / 15)
+        if "weather_id" not in changes:
+            nearest = store.nearest_weather(db, site.latitude, site.longitude)
+            site.weather_id = nearest[0] if nearest else None
     db.commit()
     return _out(site, *_context(db))
 

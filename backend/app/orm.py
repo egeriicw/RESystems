@@ -56,7 +56,8 @@ class Scenario(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
     site: Mapped[Site | None] = relationship(back_populates="scenarios")
-    runs: Mapped[list[Run]] = relationship(back_populates="scenario", passive_deletes=True, order_by="Run.id.desc()")
+    # Not loaded by the API (summaries are queried directly); kept for ORM completeness.
+    runs: Mapped[list[Run]] = relationship(back_populates="scenario", passive_deletes=True, lazy="raise_on_sql")
 
 
 class Run(Base):

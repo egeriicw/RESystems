@@ -63,14 +63,22 @@ def tilted_radiation(w: WeatherData, tilt: float, azimuth: float, ground_reflect
 
         i0 = max(GSC * (1 + 0.033 * math.cos((360 * n / 365) * DTOR)) * ctz, 0.0)
         ih = w.ghi[j]
-        if ih > 0 and i0 > 0 and i0 > ih:
-            kt = ih / i0
-            i_diffuse = erbs_diffuse_fraction(kt) * ih
-            i_beam = ih - i_diffuse
-            ai = i_beam / i0  # anisotropy index
-            dif_cs = i_diffuse * rb * ai
-            dif_iso = i_diffuse * ((1 + cos_b) / 2) * (1 - ai)
-            dif_hor = dif_iso * math.sqrt(max(i_beam / ih, 0.0)) * math.sin(beta / 2) ** 3
-            dif_ref = ih * ground_reflectance * ((1 - cos_b) / 2)
-            it[j] = i_beam * rb + dif_cs + dif_iso + dif_hor + dif_ref
+        if ih <= 0:
+            continue
+        if i0 <= 0:
+            # Sun below the horizon at the hour's midpoint but measured GHI in the
+            # hour (sunrise/sunset): treat it all as isotropic diffuse.
+            it[j] = ih * (1 + cos_b) / 2 + ih * ground_reflectance * (1 - cos_b) / 2
+            continue
+        # The VB code dropped hours with kT >= 1 entirely; cap kT and the
+        # anisotropy index instead so measured radiation is never discarded.
+        kt = min(ih / i0, 1.0)
+        i_diffuse = erbs_diffuse_fraction(kt) * ih
+        i_beam = ih - i_diffuse
+        ai = min(max(i_beam / i0, 0.0), 1.0)  # anisotropy index
+        dif_cs = i_diffuse * rb * ai
+        dif_iso = i_diffuse * ((1 + cos_b) / 2) * (1 - ai)
+        dif_hor = dif_iso * math.sqrt(max(i_beam / ih, 0.0)) * math.sin(beta / 2) ** 3
+        dif_ref = ih * ground_reflectance * ((1 - cos_b) / 2)
+        it[j] = i_beam * rb + dif_cs + dif_iso + dif_hor + dif_ref
     return SolarResult(cos_theta=cos_t, cos_theta_z=cos_tz, it=it)

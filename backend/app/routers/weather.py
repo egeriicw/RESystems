@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,6 +11,7 @@ from ..orm import WeatherDataset
 from ..weather import WeatherParseError, parse_tmy2, synthetic_year
 
 router = APIRouter(prefix="/api/weather", tags=["weather"])
+MAX_UPLOAD = 5_000_000  # a TMY2 file is about 1.3 MB
 
 
 @router.get("")
@@ -28,9 +29,15 @@ def weather_detail(weather_id: str, hourly: bool = False, db: Session = Depends(
 
 
 @router.post("/upload", status_code=201)
-async def upload_weather(file: UploadFile = File(...), db: Session = Depends(get_db)) -> dict:
-    raw = await file.read()
-    if len(raw) > 5_000_000:
+async def upload_weather(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)) -> dict:
+    # The multipart body has already been spooled by the time this runs; these
+    # checks keep it from also being read into memory. A size limit on the
+    # request itself belongs in the reverse proxy in front of the app.
+    length = request.headers.get("content-length")
+    if length and length.isdigit() and int(length) > MAX_UPLOAD + 10_000:
+        raise HTTPException(413, "File too large")
+    raw = await file.read(MAX_UPLOAD + 1)
+    if len(raw) > MAX_UPLOAD:
         raise HTTPException(413, "File too large")
     try:
         w = parse_tmy2(raw.decode("latin-1"), name=file.filename or "upload")

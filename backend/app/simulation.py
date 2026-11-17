@@ -6,7 +6,15 @@ Fixes relative to the VB code (each was a latent bug, not a modelling choice):
   * `If Quaxw < 0` / `If QuaxH < 0` typos meant auxiliary energy was never floored at 0;
   * Q-useful efficiency divides by collector area (VB compared kJ/day to kJ/day-m2);
   * the incidence-angle modifier guards against cos(theta) <= 0 instead of dividing by zero;
-  * the glazing-dependent b0 is used in every model (VB hard-coded -0.1 in two of them).
+  * the glazing-dependent b0 is used in every model (VB hard-coded -0.1 in two of them);
+  * solar to hot water is limited to the hot water load (a tempering valve mixes in
+    cold water), so a tank hotter than the supply temperature isn't drained by more
+    than the load uses and the solar fraction can't exceed 1;
+  * collector_efficiency is energy collected into storage over incident radiation
+    for every storage model. The VB fan-coil models reported energy delivered to the
+    load under that name; that figure is now system_efficiency, given for all
+    storage models.
+See also solar.py for the radiation fixes.
 """
 from __future__ import annotations
 
@@ -120,9 +128,9 @@ def _run(model: ModelType, w: WeatherData, col: CollectorParams, sys: SystemPara
                 draw += qfsh
 
             if model in (ModelType.dhw, ModelType.house_fan_coil_dhw):
-                qfsw = mwater * cp * (ts - sys.ground_water_temp)
-                qloadw = mwater * cp * (sys.hot_water_supply_temp - sys.ground_water_temp)
-                row |= {"Qfsw": qfsw, "Qloadw": qloadw, "Qauxw": max(qloadw - qfsw, 0.0)}
+                qloadw = max(mwater * cp * (sys.hot_water_supply_temp - sys.ground_water_temp), 0.0)
+                qfsw = min(max(mwater * cp * (ts - sys.ground_water_temp), 0.0), qloadw)
+                row |= {"Qfsw": qfsw, "Qloadw": qloadw, "Qauxw": qloadw - qfsw}
                 draw += qfsw
 
             ts += (qts - draw) / (sys.storage_mass * cp)
@@ -156,21 +164,29 @@ def _aggregate(hourly: dict[str, list[float]], w: WeatherData) -> tuple[dict, li
 
 
 def _metrics(model: ModelType, annual: dict, area: float) -> dict:
-    it_total = annual["It"] * area
-    eff = lambda q: q / it_total if it_total > 0 else None  # noqa: E731
-    ratio = lambda a, b: a / b if b > 0 else None  # noqa: E731
+    """collector_efficiency: collected into storage / incident (Qu for q_useful).
+    system_efficiency: delivered to loads / incident. solar_fraction: delivered / load."""
+    incident = annual["It"] * area
+
+    def ratio(a: float, b: float) -> float | None:
+        return a / b if b > 0 else None
+
     if model == ModelType.q_useful:
-        return {"collector_efficiency": eff(annual["Qu"])}
-    if model == ModelType.house_heating:
-        return {"collector_efficiency": eff(annual["Qts"]), "solar_fraction": ratio(annual["Qfs"], annual["Qload"])}
-    if model == ModelType.dhw:
-        return {"collector_efficiency": eff(annual["Qts"]),
-                "solar_fraction": ratio(annual["Qloadw"] - annual["Qauxw"], annual["Qloadw"])}
-    if model == ModelType.house_fan_coil:
-        return {"collector_efficiency": eff(annual["Qfsh"]), "solar_fraction": ratio(annual["Qfsh"], annual["Qloadh"])}
-    delivered = annual["Qfsh"] + annual["Qfsw"]
-    return {"collector_efficiency": eff(delivered),
-            "solar_fraction": ratio(delivered, annual["Qloadh"] + annual["Qloadw"])}
+        return {"collector_efficiency": ratio(annual["Qu"], incident)}
+    delivered_load = {
+        ModelType.house_heating: ("Qfs", "Qload"),
+        ModelType.dhw: ("Qfsw", "Qloadw"),
+        ModelType.house_fan_coil: ("Qfsh", "Qloadh"),
+        ModelType.house_fan_coil_dhw: (("Qfsh", "Qfsw"), ("Qloadh", "Qloadw")),
+    }[model]
+    keys_d, keys_l = (k if isinstance(k, tuple) else (k,) for k in delivered_load)
+    delivered = sum(annual[k] for k in keys_d)
+    load = sum(annual[k] for k in keys_l)
+    return {
+        "collector_efficiency": ratio(annual["Qts"], incident),
+        "system_efficiency": ratio(delivered, incident),
+        "solar_fraction": ratio(delivered, load),
+    }
 
 
 def _round(values: list[float], digits: int = 2) -> list[float]:

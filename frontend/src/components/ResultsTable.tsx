@@ -1,5 +1,5 @@
 import type { SimulationResult } from "../api";
-import { MONTHS, fmt } from "../api";
+import { MONTHS, fmt, pct } from "../api";
 
 export function ResultsTable({ result }: { result: SimulationResult }) {
   const cols = result.series;
@@ -34,10 +34,16 @@ export function ResultsTable({ result }: { result: SimulationResult }) {
 }
 
 export function Metrics({ result }: { result: SimulationResult }) {
-  const pct = (v?: number | null) => (v === null || v === undefined ? "—" : `${(v * 100).toFixed(1)}%`);
   return (
     <div className="metrics">
-      <div><span>Collector efficiency</span><strong>{pct(result.metrics.collector_efficiency)}</strong></div>
+      <div title="Energy collected into storage ÷ radiation on the collector">
+        <span>Collector efficiency</span><strong>{pct(result.metrics.collector_efficiency)}</strong>
+      </div>
+      {result.metrics.system_efficiency != null && (
+        <div title="Solar energy delivered to the loads ÷ radiation on the collector">
+          <span>System efficiency</span><strong>{pct(result.metrics.system_efficiency)}</strong>
+        </div>
+      )}
       {"solar_fraction" in result.metrics && (
         <div><span>Solar fraction</span><strong>{pct(result.metrics.solar_fraction)}</strong></div>
       )}

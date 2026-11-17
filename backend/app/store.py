@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
@@ -15,7 +16,10 @@ from .weather import WeatherData, _month_day, synthetic_year
 
 SAMPLE_ID = "sample"
 REFERENCE_YEAR_START = datetime(2001, 1, 1, tzinfo=timezone.utc)
-_weather_cache: dict[str, WeatherData] = {}
+CACHE_SIZE = 8
+# Hourly series by dataset id. Datasets are immutable and ids are never reused,
+# so an entry is valid for as long as its row exists; load_weather checks that.
+_weather_cache: OrderedDict[str, WeatherData] = OrderedDict()
 
 
 def hour_ts(i: int) -> datetime:
@@ -67,10 +71,14 @@ def get_dataset(db: Session, weather_id: str) -> WeatherDataset:
 
 
 def load_weather(db: Session, weather_id: str) -> WeatherData:
-    """Read a dataset's hourly series (cached in-process; datasets are immutable)."""
-    if weather_id in _weather_cache:
-        return _weather_cache[weather_id]
+    """Read a dataset's hourly series, via a small per-process LRU cache.
+
+    The primary-key lookup runs every time, so a dataset deleted by another
+    worker is reported as missing rather than served from this worker's cache."""
     ds = get_dataset(db, weather_id)
+    if weather_id in _weather_cache:
+        _weather_cache.move_to_end(weather_id)
+        return _weather_cache[weather_id]
     rows = db.execute(
         text("SELECT ghi, temp, dew_point FROM weather_hourly WHERE dataset_id = :id ORDER BY ts"), {"id": weather_id}
     ).all()
@@ -84,6 +92,8 @@ def load_weather(db: Session, weather_id: str) -> WeatherData:
         w.temp.append(temp)
         w.dew_point.append(dew)
     _weather_cache[weather_id] = w
+    while len(_weather_cache) > CACHE_SIZE:
+        _weather_cache.popitem(last=False)
     return w
 
 
@@ -127,6 +137,11 @@ def load_run_hourly(db: Session, run_id: int) -> dict[str, list[float]] | None:
     if not rows:
         return None
     return {k: [r[k] for r in rows] for k in rows[0]}
+
+
+def effective_weather_id(db: Session, scenario_weather: str | None, site_weather: str | None) -> str:
+    """The weather a scenario runs on: its own, else its site's, else the oldest dataset."""
+    return sample_or(db, scenario_weather, site_weather)
 
 
 def sample_or(db: Session, *candidates: str | None) -> str:

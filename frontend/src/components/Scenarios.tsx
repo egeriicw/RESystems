@@ -80,7 +80,8 @@ export function Compare({ runIds }: { runIds: number[] }) {
             <strong>{r.scenario_name}</strong>
             <small className="sub">{r.title} · {r.weather_name} · {shortDate(r.created_at)}</small>
             <div className="pair">
-              <div><span>Efficiency</span><b>{pct(r.metrics.collector_efficiency)}</b></div>
+              <div><span>Collector eff.</span><b>{pct(r.metrics.collector_efficiency)}</b></div>
+              <div><span>System eff.</span><b>{pct(r.metrics.system_efficiency)}</b></div>
               <div><span>Solar fraction</span><b>{pct(r.metrics.solar_fraction)}</b></div>
               <div><span>Collector area</span><b>{fmt(r.result.inputs.collector_area_m2, 2)} m²</b></div>
             </div>

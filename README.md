@@ -66,6 +66,20 @@ These are latent bugs in the original, fixed in the port (see the `app/simulatio
 - Q-useful collector efficiency didn't divide by collector area.
 - The incidence-angle modifier divided by zero when the sun was behind the collector.
 - `b0` now depends on the glazing count in every model. Two models had hard-coded it to −0.1.
+- Hours where measured radiation was at or above the extraterrestrial value were dropped (counted
+  as zero). The clearness index is now capped at 1 instead. Sunrise and sunset hours with measured
+  radiation but the sun below the horizon at mid-hour are treated as diffuse.
+- Solar heat to hot water is limited to the hot-water load (a tempering valve mixes in cold water).
+  The VB code let a tank hotter than the supply temperature deliver more than the load, which
+  drained the tank too fast and could push the solar fraction above 1.
+
+### Results reported
+
+- **Collector efficiency**: energy collected into storage ÷ radiation on the collector, for every
+  model. The VB fan-coil models used energy delivered to the load under this name.
+- **System efficiency**: solar energy delivered to the loads ÷ radiation on the collector (the VB
+  fan-coil figure). Not shown for runs stored before it was added.
+- **Solar fraction**: solar energy delivered ÷ load.
 
 ### Weather data
 
@@ -87,7 +101,7 @@ You can also generate a synthetic year for any latitude and longitude.
 | POST | `/api/simulate` | `{weather_id, model, collector, system, include_hourly}` → monthly, annual, daily, hourly, metrics. Nothing is stored. |
 | GET/POST | `/api/sites` | List or create sites. `?near_lat=&near_lon=&radius_km=` searches by distance. |
 | GET/PATCH/DELETE | `/api/sites/{id}` | Read, edit or delete a site (deleting removes its scenarios and runs) |
-| GET/POST | `/api/scenarios` | List (optionally `?site_id=`) or create saved scenarios |
+| GET/POST | `/api/scenarios` | List (optionally `?site_id=`) or create saved scenarios. Each includes `effective_weather_id`: its own weather, else its site's. |
 | GET/PUT/DELETE | `/api/scenarios/{id}` | Read, replace or delete a scenario |
 | POST | `/api/scenarios/{id}/run` | Simulate and store the run, including hourly series |
 | GET | `/api/scenarios/{id}/runs` | Run history, newest first |

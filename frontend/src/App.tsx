@@ -88,7 +88,11 @@ export default function App() {
   });
 
   const saveAndRun = (asNew: boolean) => busy(async () => {
-    const body = { name: scenarioName.trim(), site_id: siteId, weather_id: weatherId, model, collector: collector!, system: system! };
+    // If the chosen weather is the site's own, store null so the scenario keeps
+    // following the site's weather when that changes.
+    const site = sites.find((x) => x.id === siteId);
+    const weather_id = site && site.weather_id === weatherId ? null : weatherId;
+    const body = { name: scenarioName.trim(), site_id: siteId, weather_id, model, collector: collector!, system: system! };
     const saved = scenarioId !== null && !asNew ? await db.updateScenario(scenarioId, body) : await db.createScenario(body);
     setScenarioId(saved.id);
     const run = await db.runScenario(saved.id);
@@ -99,7 +103,7 @@ export default function App() {
   const openScenario = (s: Scenario) => {
     setScenarioId(s.id); setScenarioName(s.name); setSiteId(s.site_id);
     setModel(s.model); setCollector(s.collector); setSystem(s.system);
-    if (s.weather_id) setWeatherId(s.weather_id);
+    setWeatherId(s.effective_weather_id);
     setPage("simulator");
     if (s.latest_run) {
       busy(async () => { const run = await db.run(s.latest_run!.id); setResult(run.result); setResultLabel(`Stored run of “${s.name}”`); setView("table"); });

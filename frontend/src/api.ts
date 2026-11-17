@@ -26,7 +26,8 @@ export interface SimulationResult {
   series: SeriesInfo[];
   monthly: Record<string, number>[];
   annual: Record<string, number>;
-  metrics: { collector_efficiency?: number | null; solar_fraction?: number | null };
+  // system_efficiency is absent from runs stored before it was added.
+  metrics: { collector_efficiency?: number | null; system_efficiency?: number | null; solar_fraction?: number | null };
   daily: Record<string, number[]>;
   hourly: Record<string, number[]> | null;
   notes: string[];
@@ -91,7 +92,7 @@ export interface RunSummary {
   metrics: SimulationResult["metrics"]; annual: Record<string, number>;
 }
 export interface Scenario extends ScenarioInput {
-  id: number; site_name: string | null; created_at: string; updated_at: string; latest_run: RunSummary | null;
+  id: number; effective_weather_id: string; site_name: string | null; created_at: string; updated_at: string; latest_run: RunSummary | null;
 }
 export interface Run extends RunSummary { scenario_name: string; result: SimulationResult }
 
