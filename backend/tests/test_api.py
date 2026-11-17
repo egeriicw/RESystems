@@ -1,13 +1,9 @@
 import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
 from app.schemas import CollectorParams, ModelType, SimulationRequest, SystemParams
 from app.simulation import incidence_modifier, simulate
 from app.solar import erbs_diffuse_fraction, tilted_radiation
 from app.weather import parse_tmy2, synthetic_year, to_tmy2
 
-client = TestClient(app)
 WEATHER = synthetic_year()
 
 
@@ -84,7 +80,7 @@ def test_ua_components_override():
     assert sys.ua == 1100
 
 
-def test_api_endpoints():
+def test_api_endpoints(client):
     assert client.get("/api/health").json() == {"status": "ok"}
     assert len(client.get("/api/models").json()) == 5
     weather = client.get("/api/weather").json()
@@ -97,7 +93,7 @@ def test_api_endpoints():
     assert client.post("/api/simulate", json={"weather_id": "nope"}).status_code == 404
 
 
-def test_upload_and_synthetic():
+def test_upload_and_synthetic(client):
     r = client.post("/api/weather/upload", files={"file": ("x.tm2", to_tmy2(WEATHER).encode(), "text/plain")})
     assert r.status_code == 201, r.text
     wid = r.json()["id"]
@@ -106,4 +102,7 @@ def test_upload_and_synthetic():
     assert bad.status_code == 422
     s = client.post("/api/weather/synthetic", json={"name": "Phoenix", "latitude": 33.4, "longitude": -112, "time_zone": -7})
     assert s.status_code == 201
+    assert client.delete(f"/api/weather/{s.json()['id']}").status_code == 204
     assert client.delete(f"/api/weather/{wid}").status_code == 204
+    assert client.get(f"/api/weather/{wid}").status_code == 404
+    assert client.delete("/api/weather/sample").status_code == 400

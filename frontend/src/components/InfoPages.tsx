@@ -28,7 +28,9 @@ export function HelpPage() {
       <ol>
         <li><strong>Weather</strong> – a synthetic Dayton, OH year is loaded by default. Upload a TMY2 file or generate a synthetic year for another site.</li>
         <li><strong>Simulator → Inputs</strong> – pick a model type, then set collector and system parameters. Only the parameters the chosen model uses are shown.</li>
-        <li><strong>Run simulation</strong>, then review the <strong>Monthly table</strong>, <strong>Trends</strong> (monthly, daily or hourly) and the hour-by-day <strong>Heat map</strong>.</li>
+        <li><strong>Sites</strong> – add a building by clicking the map and filling in its features. The nearest weather dataset is assigned automatically.</li>
+        <li><strong>Scenarios</strong> – name a set of inputs in the side panel and choose “Save &amp; run” to store it and its results. Tick two scenarios in the Scenarios view to compare them.</li>
+        <li><strong>Run simulation</strong> (nothing is stored), then review the <strong>Monthly table</strong>, <strong>Trends</strong> (monthly, daily or hourly) and the hour-by-day <strong>Heat map</strong>.</li>
       </ol>
       <h3>Units</h3>
       <p>Energy is in kJ (hourly values in kJ/hr; daily and monthly values are average daily totals in kJ/day). Radiation is per m² of collector. Temperatures are °C.

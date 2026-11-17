@@ -1,0 +1,20 @@
+# Postgres 16 with the TimescaleDB and PostGIS extensions preinstalled.
+services:
+  db:
+    image: timescale/timescaledb-ha:pg16
+    environment:
+      POSTGRES_USER: resystems
+      POSTGRES_PASSWORD: resystems
+      POSTGRES_DB: resystems
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbdata:/home/postgres/pgdata/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resystems -d resystems"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  dbdata:

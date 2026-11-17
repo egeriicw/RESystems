@@ -70,3 +70,45 @@ export function fmt(v: number | null | undefined, digits = 0): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
   return v.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
+
+// ---- Sites, scenarios and stored runs ----
+
+export interface SiteInput {
+  name: string; latitude: number; longitude: number; time_zone?: number | null; address?: string | null;
+  building_type?: string | null; floor_area_m2?: number | null; year_built?: number | null;
+  occupants?: number | null; ua_house?: number | null; notes?: string | null; weather_id?: string | null;
+}
+export interface Site extends SiteInput {
+  id: number; time_zone: number; created_at: string; scenario_count: number;
+  weather_name: string | null; weather_distance_km: number | null;
+}
+export interface ScenarioInput {
+  name: string; site_id: number | null; weather_id: string | null; model: ModelType;
+  collector: CollectorParams; system: SystemParams;
+}
+export interface RunSummary {
+  id: number; scenario_id: number; created_at: string; title: string; weather_name: string;
+  metrics: SimulationResult["metrics"]; annual: Record<string, number>;
+}
+export interface Scenario extends ScenarioInput {
+  id: number; site_name: string | null; created_at: string; updated_at: string; latest_run: RunSummary | null;
+}
+export interface Run extends RunSummary { scenario_name: string; result: SimulationResult }
+
+const send = (method: string, body: unknown): RequestInit => ({ ...json(body), method });
+
+export const db = {
+  sites: () => request<Site[]>("/sites"),
+  createSite: (body: SiteInput) => request<Site>("/sites", json(body)),
+  updateSite: (id: number, body: Partial<SiteInput>) => request<Site>(`/sites/${id}`, send("PATCH", body)),
+  deleteSite: (id: number) => request<void>(`/sites/${id}`, { method: "DELETE" }),
+  scenarios: () => request<Scenario[]>("/scenarios"),
+  createScenario: (body: ScenarioInput) => request<Scenario>("/scenarios", json(body)),
+  updateScenario: (id: number, body: ScenarioInput) => request<Scenario>(`/scenarios/${id}`, send("PUT", body)),
+  deleteScenario: (id: number) => request<void>(`/scenarios/${id}`, { method: "DELETE" }),
+  runScenario: (id: number) => request<Run>(`/scenarios/${id}/run`, { method: "POST" }),
+  run: (id: number, hourly = true) => request<Run>(`/runs/${id}?hourly=${hourly}`),
+};
+
+export const pct = (v?: number | null) => (v === null || v === undefined ? "—" : `${(v * 100).toFixed(1)}%`);
+export const shortDate = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
