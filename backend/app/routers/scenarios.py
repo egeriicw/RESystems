@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session, selectinload
@@ -11,6 +13,7 @@ from sqlalchemy.orm import Session, selectinload
 from .. import store
 from ..db import get_db
 from ..orm import Run, Scenario
+from ..diagram import Diagram, DiagramError, simulate_diagram
 from ..schemas import CollectorParams, ModelType, SimulationRequest, SimulationResult, SystemParams
 from ..simulation import simulate
 from .sites import get_site
@@ -22,9 +25,16 @@ class ScenarioIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     site_id: int | None = None
     weather_id: str | None = Field(None, description="Defaults to the site's weather, then the sample dataset")
-    model: ModelType
+    model: ModelType | Literal["diagram"]
     collector: CollectorParams = CollectorParams()
     system: SystemParams = SystemParams()
+    diagram: Diagram | None = Field(None, description="Required when model is \"diagram\"; may be incomplete (saved drafts)")
+
+    @model_validator(mode="after")
+    def _diagram_matches_model(self):
+        if (self.model == "diagram") != (self.diagram is not None):
+            raise ValueError('diagram must be given exactly when model is "diagram"')
+        return self
 
 
 class RunSummary(BaseModel):
@@ -83,7 +93,7 @@ def _latest_runs(db: Session, scenario_ids: list[int]) -> dict[int, RunSummary]:
 
 def _out(db: Session, s: Scenario, latest: RunSummary | None) -> ScenarioOut:
     return ScenarioOut(id=s.id, name=s.name, site_id=s.site_id, weather_id=s.weather_id, model=s.model,
-                       collector=s.collector, system=s.system, site_name=s.site.name if s.site else None,
+                       collector=s.collector, system=s.system, diagram=s.diagram, site_name=s.site.name if s.site else None,
                        effective_weather_id=store.effective_weather_id(db, s.weather_id, s.site.weather_id if s.site else None),
                        created_at=s.created_at, updated_at=s.updated_at, latest_run=latest)
 
@@ -158,8 +168,14 @@ def run_scenario(scenario_id: int, db: Session = Depends(get_db)) -> RunOut:
     """Simulate the scenario and store the result, including the hourly series."""
     s = _get(db, scenario_id)
     weather_id = store.effective_weather_id(db, s.weather_id, s.site.weather_id if s.site else None)
-    req = SimulationRequest(weather_id=weather_id, model=s.model, collector=s.collector, system=s.system)
-    result = simulate(req, lambda wid: store.load_weather(db, wid))
+    if s.model == "diagram":
+        try:
+            result = simulate_diagram(Diagram.model_validate(s.diagram), store.load_weather(db, weather_id))
+        except DiagramError as exc:
+            raise HTTPException(422, {"message": "The diagram has problems", "issues": [i.model_dump() for i in exc.issues]}) from exc
+    else:
+        req = SimulationRequest(weather_id=weather_id, model=s.model, collector=s.collector, system=s.system)
+        result = simulate(req, lambda wid: store.load_weather(db, wid))
     run = store.save_run(db, s.id, result)
     return RunOut(**_summary(run).model_dump(), scenario_name=s.name, result=result)
 

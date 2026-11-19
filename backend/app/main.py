@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from . import store
 from .db import get_db, get_engine, migrate
-from .routers import scenarios, sites, weather
+from .routers import diagram, scenarios, sites, weather
 from .schemas import CollectorParams, ModelType, SimulationRequest, SimulationResult, SystemParams
 from .simulation import MODEL_SERIES, SERIES, TITLES, simulate
 
@@ -34,6 +34,7 @@ app.add_middleware(
 app.include_router(weather.router)
 app.include_router(sites.router)
 app.include_router(scenarios.router)
+app.include_router(diagram.router)
 
 
 @app.get("/api/health")

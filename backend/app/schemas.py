@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -94,7 +95,7 @@ class SeriesInfo(BaseModel):
 
 
 class SimulationResult(BaseModel):
-    model: ModelType
+    model: ModelType | Literal["diagram"]
     title: str
     weather: dict
     inputs: dict
@@ -105,3 +106,5 @@ class SimulationResult(BaseModel):
     daily: dict[str, list[float]]
     hourly: dict[str, list[float]] | None = None
     notes: list[str] = []
+    # Diagram runs only: annual outputs per component and energy carried per wire.
+    diagram: dict | None = None
