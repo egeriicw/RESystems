@@ -107,3 +107,73 @@ td.left, th.left { text-align: left; }
 .pair span { display: block; color: var(--muted); font-size: 11px; }
 .pair b { font-size: 18px; font-variant-numeric: tabular-nums; }
 h4 { margin: 20px 0 6px; }
+
+/* ---------- System diagram ---------- */
+.page-hidden { display: none; }
+.diagram-layout { min-height: calc(100vh - 52px); }
+.diagram-side { width: 240px; }
+.diagram-main { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; }
+.diagram-canvas { height: 560px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.palette-group { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+.palette-group .sub { text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+.palette-item { display: flex; align-items: center; gap: 8px; text-align: left; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; color: var(--text); font-size: 13px; cursor: grab; }
+.palette-item:hover { border-color: var(--accent); }
+.legend-kinds { display: flex; flex-direction: column; gap: 3px; margin-top: 12px; font-size: 11px; color: var(--muted); }
+.legend-kinds i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.dirty { color: var(--accent); font-style: normal; font-weight: 400; }
+
+.cnode { position: relative; width: 190px; background: var(--panel); color: var(--text); border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 12px 8px 10px; font-size: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); cursor: pointer; }
+.cnode.selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.25); }
+.cnode.has-issue { border-color: #dc2626; }
+.cnode-head { display: flex; align-items: center; gap: 8px; }
+.cnode-icon { color: var(--accent); display: flex; }
+.cnode-title { font-weight: 600; font-size: 13px; line-height: 1.2; }
+.cnode-type { color: var(--muted); font-size: 10px; }
+.cnode-value { margin-top: 6px; font-variant-numeric: tabular-nums; font-weight: 600; }
+.cnode-value span { color: var(--muted); font-weight: 400; display: block; font-size: 10px; }
+.cnode-value.stale { opacity: 0.45; }
+.cnode-issue { margin-top: 6px; color: #dc2626; font-size: 11px; line-height: 1.25; }
+.cnode .react-flow__handle { width: 11px; height: 11px; border: 2px solid var(--panel); }
+.port-label { position: absolute; font-size: 9px; color: var(--muted); pointer-events: none; white-space: nowrap; }
+.port-label.right { right: 10px; }
+.wire-label { position: absolute; pointer-events: all; font-size: 11px; font-variant-numeric: tabular-nums; background: var(--panel); color: var(--text); border: 1.5px solid; border-radius: 999px; padding: 1px 8px; cursor: pointer; }
+.wire-label.issue { color: #dc2626; font-weight: 700; }
+.wire-label.stale { opacity: 0.5; }
+
+.diagram-status { min-height: 30px; }
+.status-pill { display: inline-block; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--border); color: var(--muted); }
+.status-pill.ok { color: #15803d; border-color: #86efac; }
+.status-pill.busy { color: var(--accent); border-color: var(--accent); }
+.status-pill.stale { color: #a16207; border-color: #fcd34d; }
+.issues-box { background: rgba(220, 38, 38, 0.06); border: 1px solid rgba(220, 38, 38, 0.4); border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+.issues-box ul { margin: 4px 0 0; padding-left: 18px; }
+.diagram-results .toolbar { justify-content: flex-start; }
+.diagram-results .segmented button { text-transform: capitalize; }
+
+.modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+.modal { background: var(--panel); color: var(--text); border-radius: 12px; width: min(560px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3); }
+.modal-head { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px 8px; }
+.modal-head h3 { margin: 0; font-size: 17px; }
+.modal-icon { color: var(--accent); display: flex; padding-top: 2px; }
+.wire-swatch { display: inline-block; width: 28px; height: 5px; border-radius: 3px; margin-top: 12px; }
+.icon-btn { margin-left: auto; background: none; border: 0; font-size: 24px; line-height: 1; color: var(--muted); padding: 0 4px; }
+.modal-tabs { margin: 4px 18px 0; align-self: flex-start; }
+.modal-body { padding: 12px 18px; overflow-y: auto; }
+.modal-body .field input, .modal-body .field select { width: 170px; }
+.modal-foot { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--border); }
+.spacer { flex: 1; }
+.pfield { padding: 2px 0; }
+.field-help, .field-error { display: block; font-size: 11px; margin: -2px 0 4px; color: var(--muted); }
+.field-error { color: #dc2626; }
+.profile-title { font-size: 14px; display: block; margin: 8px 0 4px; }
+.profile-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.profile-grid label { display: flex; flex-direction: column; font-size: 10px; color: var(--muted); }
+.profile-grid input { width: 100%; padding: 3px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); font: inherit; font-size: 12px; }
+.issue-list { margin: 0 0 10px; padding: 8px 12px 8px 26px; background: rgba(220, 38, 38, 0.06); border-radius: 6px; color: #dc2626; font-size: 13px; }
+.kv { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.kv strong { font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) {
+  .diagram-side { width: auto; max-height: none; position: static; }
+  .diagram-canvas { height: 420px; }
+  .modal-body .field input, .modal-body .field select { width: 130px; }
+}

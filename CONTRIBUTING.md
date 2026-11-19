@@ -6,9 +6,9 @@ How the team handles revisions to this codebase.
 
 | Area | Covers | Reviewer for |
 |---|---|---|
-| Simulation engine | `backend/app/solar.py`, `simulation.py`, `weather.py` | Any change to physics or numbers |
+| Simulation engine | `backend/app/solar.py`, `simulation.py`, `weather.py`, `components.py`, `diagram.py` | Any change to physics or numbers |
 | API and data | `backend/app/routers`, `store.py`, `orm.py`, Alembic migrations | Schema and endpoint changes |
-| Frontend | `frontend/src` | UI changes |
+| Frontend | `frontend/src`, including the diagram editor in `components/diagram` | UI changes |
 | Infrastructure | `docker-compose.yml`, CI, deployment | Build and environment changes |
 
 One person can hold two areas, but every change gets a reviewer who isn't the author.
@@ -30,6 +30,11 @@ One person can hold two areas, but every change gets a reviewer who isn't the au
   upgrading a database that has data in it.
 - **API changes stay backward-compatible**, or update `frontend/src/api.ts` in the same pull request.
 - **Units are declared.** Every new field states its unit in the schema description.
+- **`simulation.py` is the reference for the diagram engine.** Keep the template-equivalence tests in
+  `tests/test_diagram.py` passing; if a deliberate change breaks them, change both and say why.
+- **Adding a component** means: define its ports, parameters and outputs in `components.py`, handle it in
+  `diagram.py` (validation and the hourly loop), add its icon in `frontend/src/components/diagram/Glyph.tsx`,
+  and add a test. The palette and edit box are generated from `components.py`.
 
 ## Before opening a pull request
 

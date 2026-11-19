@@ -8,11 +8,12 @@ import { AboutPage, HelpPage } from "./components/InfoPages";
 import { CollectorForm, ModelPicker, SystemForm } from "./components/ParamsForm";
 import { Metrics, ResultsTable } from "./components/ResultsTable";
 import { Compare, ScenarioList } from "./components/Scenarios";
+import { DiagramPage, type OpenRequest } from "./components/diagram/DiagramPage";
 import { SitesPage } from "./components/SitesPage";
 import { TrendChart } from "./components/TrendChart";
 import { WeatherPage } from "./components/WeatherPage";
 
-type Page = "simulator" | "sites" | "weather" | "about" | "help";
+type Page = "diagram" | "simulator" | "sites" | "weather" | "about" | "help";
 type View = "inputs" | "table" | "trends" | "heatmap" | "scenarios" | "compare";
 
 const VIEWS: { id: View; label: string; needsResult?: boolean }[] = [
@@ -30,7 +31,8 @@ function hasInvalid(obj: object): boolean {
 }
 
 export default function App() {
-  const [page, setPage] = useState<Page>("simulator");
+  const [page, setPage] = useState<Page>("diagram");
+  const [diagramOpen, setDiagramOpen] = useState<OpenRequest | null>(null);
   const [view, setView] = useState<View>("inputs");
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [weather, setWeather] = useState<WeatherSummary[]>([]);
@@ -101,8 +103,13 @@ export default function App() {
   });
 
   const openScenario = (s: Scenario) => {
+    if (s.model === "diagram") {
+      setDiagramOpen({ scenario: s, nonce: Date.now() });
+      setPage("diagram");
+      return;
+    }
     setScenarioId(s.id); setScenarioName(s.name); setSiteId(s.site_id);
-    setModel(s.model); setCollector(s.collector); setSystem(s.system);
+    setModel(s.model as ModelType); setCollector(s.collector); setSystem(s.system);
     setWeatherId(s.effective_weather_id);
     setPage("simulator");
     if (s.latest_run) {
@@ -135,11 +142,16 @@ export default function App() {
       <header className="topbar">
         <div className="brand">☀ Renewable Energy Systems</div>
         <nav>
-          {(["simulator", "sites", "weather", "about", "help"] as Page[]).map((p) => (
-            <button key={p} className={p === page ? "on" : ""} onClick={() => setPage(p)}>{p}</button>
+          {(["diagram", "simulator", "sites", "weather", "about", "help"] as Page[]).map((p) => (
+            <button key={p} className={p === page ? "on" : ""} onClick={() => setPage(p)}>{p === "diagram" ? "System diagram" : p}</button>
           ))}
         </nav>
       </header>
+
+      {/* Kept mounted so the diagram survives switching pages. */}
+      <div className={page === "diagram" ? "" : "page-hidden"}>
+        <DiagramPage weather={weather} sites={sites} scenarios={scenarios} onSaved={loadSaved} open={diagramOpen} />
+      </div>
 
       {page === "simulator" && (
         <div className="layout">

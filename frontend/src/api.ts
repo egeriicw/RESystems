@@ -20,7 +20,7 @@ export interface WeatherSummary {
   hours: number; monthly: { month: number; Ta: number; Ih: number }[];
 }
 export interface SimulationResult {
-  model: ModelType; title: string;
+  model: ModelType | "diagram"; title: string;
   weather: { name: string; source: string; latitude: number; longitude: number; time_zone: number };
   inputs: { collector_area_m2: number; house_ua: number };
   series: SeriesInfo[];
@@ -31,17 +31,26 @@ export interface SimulationResult {
   daily: Record<string, number[]>;
   hourly: Record<string, number[]> | null;
   notes: string[];
+  // Diagram runs: annual outputs per component, energy carried per wire.
+  diagram?: { nodes: Record<string, Record<string, number>>; edges: Record<string, { label: string; value: number; unit: string }> } | null;
+}
+
+export class ApiError extends Error {
+  constructor(message: string, public status: number, public issues: DiagramIssue[] = []) { super(message); }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, init);
   if (!res.ok) {
     let detail = res.statusText;
+    let issues: DiagramIssue[] = [];
     try {
       const body = await res.json();
-      detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+      if (typeof body.detail === "string") detail = body.detail;
+      else if (body.detail?.issues) { detail = body.detail.message; issues = body.detail.issues; }
+      else detail = JSON.stringify(body.detail);
     } catch { /* not JSON */ }
-    throw new Error(detail);
+    throw new ApiError(detail, res.status, issues);
   }
   return res.status === 204 ? (undefined as T) : res.json();
 }
@@ -84,8 +93,8 @@ export interface Site extends SiteInput {
   weather_name: string | null; weather_distance_km: number | null;
 }
 export interface ScenarioInput {
-  name: string; site_id: number | null; weather_id: string | null; model: ModelType;
-  collector: CollectorParams; system: SystemParams;
+  name: string; site_id: number | null; weather_id: string | null; model: ModelType | "diagram";
+  collector: CollectorParams; system: SystemParams; diagram?: Diagram | null;
 }
 export interface RunSummary {
   id: number; scenario_id: number; created_at: string; title: string; weather_name: string;
@@ -113,3 +122,33 @@ export const db = {
 
 export const pct = (v?: number | null) => (v === null || v === undefined ? "—" : `${(v * 100).toFixed(1)}%`);
 export const shortDate = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+// ---- One-line diagrams ----
+
+export interface ParamSpec {
+  key: string; label: string; type: "number" | "integer" | "select" | "profile" | "months";
+  unit: string | null; default: unknown; min: number | null; max: number | null; step: number | null;
+  options: { value: string | number; label: string }[] | null; help: string | null;
+}
+export interface PortSpec {
+  id: string; label: string; direction: "in" | "out"; kind: string; max_connections: number | null; wire_params: ParamSpec[];
+}
+export interface ComponentSpec {
+  type: string; title: string; category: string; description: string; ports: PortSpec[]; params: ParamSpec[];
+  outputs: { key: string; label: string; kind: string; unit: string }[]; summary: string;
+}
+export interface ComponentLibrary { port_kinds: string[]; components: ComponentSpec[] }
+
+export type Params = Record<string, unknown>;
+export interface DiagramNode { id: string; type: string; label: string; position: { x: number; y: number }; params: Params }
+export interface DiagramEdge { id: string; source: string; source_handle: string; target: string; target_handle: string; params: Params }
+export interface Diagram { nodes: DiagramNode[]; edges: DiagramEdge[] }
+export interface DiagramIssue { message: string; node_id: string | null; edge_id: string | null; param: string | null }
+export interface DiagramTemplate { id: string; title: string; diagram: Diagram }
+
+export const diagramApi = {
+  library: () => request<ComponentLibrary>("/components"),
+  templates: () => request<DiagramTemplate[]>("/diagram/templates"),
+  validate: (diagram: Diagram) => request<{ issues: DiagramIssue[] }>("/diagram/validate", json({ diagram })),
+  simulate: (weather_id: string, diagram: Diagram) => request<SimulationResult>("/diagram/simulate", json({ weather_id, diagram })),
+};

@@ -26,6 +26,7 @@ export function HelpPage() {
     <article className="card prose">
       <h2>Help</h2>
       <ol>
+        <li><strong>System diagram</strong> – click a component in the library (or drag it onto the canvas), then wire it up by dragging from a coloured port to a port of the same colour. Once everything is connected the system is simulated. Click any component or wire to edit its parameters; “Save &amp; rerun” updates the results. Start from a template to see the original program’s five systems.</li>
         <li><strong>Weather</strong> – a synthetic Dayton, OH year is loaded by default. Upload a TMY2 file or generate a synthetic year for another site.</li>
         <li><strong>Simulator → Inputs</strong> – pick a model type, then set collector and system parameters. Only the parameters the chosen model uses are shown.</li>
         <li><strong>Sites</strong> – add a building by clicking the map and filling in its features. The nearest weather dataset is assigned automatically.</li>

@@ -8,7 +8,7 @@ export function ScenarioList({ scenarios, models, currentId, compare, onCompareC
   onCompareChange: (ids: number[]) => void; onOpen: (s: Scenario) => void; onRun: (s: Scenario) => void;
   onDelete: (s: Scenario) => void; onCompare: () => void;
 }) {
-  const title = (id: string) => models.find((m) => m.id === id)?.title ?? id;
+  const title = (id: string) => (id === "diagram" ? "System diagram" : models.find((m) => m.id === id)?.title ?? id);
   if (scenarios.length === 0) {
     return <p className="hint">No saved scenarios yet. Set up the inputs, give the scenario a name in the side panel and choose “Save &amp; run”.</p>;
   }

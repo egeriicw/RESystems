@@ -11,6 +11,39 @@ docker-compose.yml   Postgres 16 with TimescaleDB and PostGIS
 Resources/           Original VB6 forms and modules
 ```
 
+## System diagram
+
+The **System Diagram** page is a one-line diagram editor. Pick components from the library,
+wire them together, and the system is simulated once everything is connected. Click any
+component or wire to open its box, edit its parameters, and save to rerun. Wires show the
+energy they carried in the last run; components show a key result.
+
+| Component | Ports | Parameters |
+|---|---|---|
+| Solar collector array | collector loop out | number and area of collectors, tilt, azimuth, ground reflectance, FR(τα), FR·UL, glazings |
+| Heat exchanger | collector loop in → out | effectiveness, tank-side flow (loop or hot-water draw) |
+| Storage tank | collector loop in; heating supply and hot water out | water mass, initial and maximum temperature |
+| Fan coil | heating water in → heat out | effectiveness, capacitance rate, minimum tank temperature |
+| Direct supply emitter | heating water in → heat out | (supply flow is set on its wire) |
+| House heating load | heat in | UA, internal gains, set point, heating months |
+| Hot water load | hot water in | mains and delivery temperature, hourly draw profile |
+
+Wiring rules: ports join only to ports of the same kind (colour). A collector feeds at most
+one tank, directly or through one heat exchanger; an unconnected collector runs at a fixed
+inlet temperature. Each emitter serves one house from one tank; each hot water load draws
+from one tank. Any number of arrays, tanks and loads can be combined. Problems are listed
+by component or wire, and the diagram runs only when there are none.
+
+Wires carry parameters only where the physics uses them: the flow rate on the wire from a
+heat exchanger to its tank, and on the wire from a tank to a direct supply emitter.
+
+The five templates rebuild the original program's models, and `tests/test_diagram.py`
+checks that they reproduce `simulation.py` hour by hour. Diagrams are saved as scenarios
+(model `diagram`), so they get run history and Compare like any other scenario.
+
+Only thermal components exist so far, matching what the VB program modelled. Ports have a
+kind, and `electric` is reserved for PV, battery and EV components.
+
 ## Quick start
 
 Database (Docker):
@@ -69,6 +102,8 @@ These are latent bugs in the original, fixed in the port (see the `app/simulatio
 - Hours where measured radiation was at or above the extraterrestrial value were dropped (counted
   as zero). The clearness index is now capped at 1 instead. Sunrise and sunset hours with measured
   radiation but the sun below the horizon at mid-hour are treated as diffuse.
+- In diagrams, a fan coil never delivers negative heat. `simulation.py` lets it go negative if its
+  minimum supply temperature is set below the room temperature; with the defaults they agree.
 - Solar heat to hot water is limited to the hot-water load (a tempering valve mixes in cold water).
   The VB code let a tank hotter than the supply temperature deliver more than the load, which
   drained the tank too fast and could push the solar fraction above 1.
@@ -106,6 +141,10 @@ You can also generate a synthetic year for any latitude and longitude.
 | POST | `/api/scenarios/{id}/run` | Simulate and store the run, including hourly series |
 | GET | `/api/scenarios/{id}/runs` | Run history, newest first |
 | GET/DELETE | `/api/runs/{id}` | A stored run (`?hourly=false` to skip the hourly series) |
+| GET | `/api/components` | Component library: types, ports, parameter schemas with units and defaults, outputs |
+| GET | `/api/diagram/templates` | The five original models as diagrams |
+| POST | `/api/diagram/validate` | `{diagram}` → `{issues: [{message, node_id, edge_id, param}]}` |
+| POST | `/api/diagram/simulate` | `{weather_id, diagram, include_hourly}` → result; 422 with `issues` if incomplete. Nothing is stored. |
 
 Units follow the original: energy in kJ (hourly kJ/hr, daily and monthly values as average kJ/day),
 radiation per m² of collector, temperatures in °C.
@@ -117,7 +156,7 @@ radiation per m² of collector, temperatures in °C.
 | `weather_datasets` | Name, source, location (PostGIS point), monthly summary |
 | `weather_hourly` | 8,760 hourly records per dataset (Timescale hypertable) |
 | `sites` | Name, location (PostGIS point), time zone, building features, assigned weather dataset |
-| `scenarios` | Model type plus collector and system inputs, optionally tied to a site |
+| `scenarios` | Model type plus collector and system inputs (or a diagram), optionally tied to a site |
 | `runs` | Stored result of running a scenario (monthly, daily, annual, metrics) |
 | `run_hourly` | Hourly series of each run (Timescale hypertable) |
 
