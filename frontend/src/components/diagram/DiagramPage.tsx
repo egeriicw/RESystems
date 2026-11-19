@@ -76,12 +76,14 @@ function nextId(type: string, taken: Set<string>) {
 
 export function DiagramPage(props: {
   weather: WeatherSummary[]; sites: Site[]; scenarios: Scenario[]; onSaved: () => Promise<unknown>; open: OpenRequest | null;
+  active: boolean;
 }) {
   return <ReactFlowProvider><Editor {...props} /></ReactFlowProvider>;
 }
 
-function Editor({ weather, sites, scenarios, onSaved, open }: {
+function Editor({ weather, sites, scenarios, onSaved, open, active }: {
   weather: WeatherSummary[]; sites: Site[]; scenarios: Scenario[]; onSaved: () => Promise<unknown>; open: OpenRequest | null;
+  active: boolean;
 }) {
   const rf = useReactFlow<ComponentFlowNode, WireFlowEdge>();
   const [specs, setSpecs] = useState<Record<string, ComponentSpec>>({});
@@ -416,7 +418,9 @@ function Editor({ weather, sites, scenarios, onSaved, open }: {
               onNodeClick={(_, n) => setEditing({ kind: "node", id: n.id })}
               onEdgeClick={(_, e) => setEditing({ kind: "edge", id: e.id })}
               defaultEdgeOptions={{ type: "wire" }} colorMode="system" fitView minZoom={0.2} maxZoom={2}
-              deleteKeyCode={["Delete", "Backspace"]} proOptions={{ hideAttribution: false }}>
+              // Keyboard delete only while the canvas is in use: not behind an open edit box
+              // (Backspace on a focused button would remove the component) or on another page.
+              deleteKeyCode={active && !editing ? ["Delete", "Backspace"] : null} proOptions={{ hideAttribution: false }}>
               <Background gap={20} />
               <Controls />
               <MiniMap pannable zoomable nodeStrokeWidth={3} />

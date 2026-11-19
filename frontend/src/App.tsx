@@ -150,7 +150,7 @@ export default function App() {
 
       {/* Kept mounted so the diagram survives switching pages. */}
       <div className={page === "diagram" ? "" : "page-hidden"}>
-        <DiagramPage weather={weather} sites={sites} scenarios={scenarios} onSaved={loadSaved} open={diagramOpen} />
+        <DiagramPage weather={weather} sites={sites} scenarios={scenarios} onSaved={loadSaved} open={diagramOpen} active={page === "diagram"} />
       </div>
 
       {page === "simulator" && (

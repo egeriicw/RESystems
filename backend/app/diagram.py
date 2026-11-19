@@ -228,6 +228,10 @@ def compile_diagram(d: Diagram) -> Compiled:
                 issues.append(Issue(message=f"{n.label} must be wired to {what}", node_id=n.id))
         if n.type == "heat_exchanger" and (w := c.wire_in(n.id, "in")) and w.source.type != "collector":
             issues.append(Issue(message="A heat exchanger must be fed directly by a collector", edge_id=w.id))
+        if n.type == "heat_exchanger" and n.params["tank_side_flow"] == "hot_water_draw" and (out := c.wire_out(n.id, "out")):
+            if not any(w.target.type == "dhw_load" for w in c.outputs.get((out.target.id, "hot_water"), [])):
+                issues.append(Issue(message="Tank-side flow is set to the hot water draw, but its tank has no hot water load",
+                                    node_id=n.id, param="tank_side_flow"))
 
     if not any(n.type == "collector" for n in nodes.values()):
         issues.append(Issue(message="Add at least one solar collector array"))

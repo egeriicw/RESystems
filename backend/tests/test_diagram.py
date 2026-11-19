@@ -112,6 +112,11 @@ def test_validation_messages():
     with pytest.raises(DiagramError):
         simulate_diagram(Diagram.model_validate(no_house_wire), WEATHER)
 
+    # An exchanger sized by the hot water draw needs a hot water load on its tank.
+    dhw = template(ModelType.dhw).model_dump()
+    no_load = {**dhw, "nodes": [n for n in dhw["nodes"] if n["id"] != "dhw"], "edges": [e for e in dhw["edges"] if e["target"] != "dhw"]}
+    assert ("hx", None, "Tank-side flow is set to the hot water draw, but its tank has no hot water load") in issues(no_load)
+
 
 def test_wire_params_are_validated_and_used():
     d = template(ModelType.house_fan_coil).model_dump()
